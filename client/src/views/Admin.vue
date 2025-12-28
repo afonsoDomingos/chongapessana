@@ -6,6 +6,9 @@
         <button @click="activeTab = 'enrollments'" :class="{ active: activeTab === 'enrollments' }">
           <i class="fas fa-users"></i> Inscrições
         </button>
+        <button @click="activeTab = 'billing'; calculateBilling()" :class="{ active: activeTab === 'billing' }">
+          <i class="fas fa-chart-line"></i> Faturação
+        </button>
         <button @click="activeTab = 'manage-courses'; fetchCourses()" :class="{ active: activeTab === 'manage-courses' }">
           <i class="fas fa-book"></i> Gerir Cursos
         </button>
@@ -44,6 +47,89 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Billing Tab -->
+    <div v-if="activeTab === 'billing'" class="billing-admin">
+      <h2><i class="fas fa-chart-line"></i> Faturação & Pagamentos</h2>
+      
+      <!-- Stats Cards -->
+      <div class="billing-stats">
+        <div class="stat-card total">
+          <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ billingStats.totalRevenue.toLocaleString() }} MT</span>
+            <span class="stat-label">Receita Total</span>
+          </div>
+        </div>
+        <div class="stat-card approved">
+          <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ billingStats.approvedCount }}</span>
+            <span class="stat-label">Pagamentos Aprovados</span>
+          </div>
+        </div>
+        <div class="stat-card pending">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ billingStats.pendingCount }}</span>
+            <span class="stat-label">Pagamentos Pendentes</span>
+          </div>
+        </div>
+        <div class="stat-card pending-value">
+          <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ billingStats.pendingRevenue.toLocaleString() }} MT</span>
+            <span class="stat-label">Valor Pendente</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course Revenue Breakdown -->
+      <div class="billing-section">
+        <h3><i class="fas fa-book"></i> Receita por Curso</h3>
+        <div class="course-revenue-list">
+          <div class="course-revenue-item" v-for="course in billingStats.courseBreakdown" :key="course.name">
+            <div class="course-info">
+              <span class="course-name">{{ course.name }}</span>
+              <span class="course-price">{{ course.price }} MT/unidade</span>
+            </div>
+            <div class="course-stats">
+              <span class="enrollments">{{ course.count }} inscrições</span>
+              <span class="revenue">{{ course.total.toLocaleString() }} MT</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment History -->
+      <div class="billing-section">
+        <h3><i class="fas fa-history"></i> Histórico de Pagamentos</h3>
+        <table class="admin-table billing-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Aluno</th>
+              <th>Curso</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="payment in paymentHistory" :key="payment._id" :class="payment.status">
+              <td>{{ formatDate(payment.createdAt) }}</td>
+              <td>{{ payment.userId?.name || 'N/A' }}</td>
+              <td>{{ payment.courseId?.title?.pt || 'N/A' }}</td>
+              <td class="amount">{{ payment.courseId?.price || 0 }} MT</td>
+              <td>
+                <span :class="'status-badge ' + payment.status">
+                  {{ payment.status === 'approved' ? '✓ Aprovado' : payment.status === 'pending' ? '⏳ Pendente' : '✗ Rejeitado' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Manage Courses Tab -->
@@ -143,6 +229,15 @@ const enrollments = ref([])
 const courses = ref([])
 const activeTab = ref('enrollments')
 const expandedCourse = ref(null)
+const paymentHistory = ref([])
+
+const billingStats = ref({
+    totalRevenue: 0,
+    pendingRevenue: 0,
+    approvedCount: 0,
+    pendingCount: 0,
+    courseBreakdown: []
+})
 
 const newCourse = ref({
     title: { pt: '', en: '' },
@@ -156,6 +251,54 @@ const newMaterial = ref({
     type: 'video',
     url: ''
 })
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A'
+    return new Date(dateStr).toLocaleDateString('pt-PT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    })
+}
+
+const calculateBilling = () => {
+    const courseMap = {}
+    let totalRevenue = 0
+    let pendingRevenue = 0
+    let approvedCount = 0
+    let pendingCount = 0
+
+    enrollments.value.forEach(enr => {
+        const courseName = enr.courseId?.title?.pt || 'Desconhecido'
+        const price = enr.courseId?.price || 0
+
+        if (enr.status === 'approved') {
+            totalRevenue += price
+            approvedCount++
+            
+            if (!courseMap[courseName]) {
+                courseMap[courseName] = { name: courseName, price, count: 0, total: 0 }
+            }
+            courseMap[courseName].count++
+            courseMap[courseName].total += price
+        } else if (enr.status === 'pending') {
+            pendingRevenue += price
+            pendingCount++
+        }
+    })
+
+    billingStats.value = {
+        totalRevenue,
+        pendingRevenue,
+        approvedCount,
+        pendingCount,
+        courseBreakdown: Object.values(courseMap)
+    }
+
+    paymentHistory.value = [...enrollments.value].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+    )
+}
 
 const toggleMaterials = (courseId) => {
     expandedCourse.value = expandedCourse.value === courseId ? null : courseId
@@ -515,5 +658,178 @@ onMounted(fetchAllEnrollments)
   font-style: italic;
   text-align: center;
   padding: 1rem;
+}
+
+/* Billing Section */
+.billing-admin h2 i { margin-right: 0.5rem; }
+
+.billing-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.stat-card.total { border-left: 4px solid var(--accent); }
+.stat-card.approved { border-left: 4px solid var(--success); }
+.stat-card.pending { border-left: 4px solid #f39c12; }
+.stat-card.pending-value { border-left: 4px solid #9b59b6; }
+
+.stat-icon {
+  font-size: 2rem;
+  opacity: 0.8;
+}
+
+.stat-card.total .stat-icon { color: var(--accent); }
+.stat-card.approved .stat-icon { color: var(--success); }
+.stat-card.pending .stat-icon { color: #f39c12; }
+.stat-card.pending-value .stat-icon { color: #9b59b6; }
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.billing-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.billing-section h3 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.billing-section h3 i {
+  margin-right: 0.5rem;
+  color: var(--accent);
+}
+
+.course-revenue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.course-revenue-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.course-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.course-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.course-price {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.course-stats {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.enrollments {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.revenue {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.billing-table .amount {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.status-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.approved {
+  background: rgba(46, 204, 113, 0.15);
+  color: var(--success);
+}
+
+.status-badge.pending {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+}
+
+.status-badge.rejected {
+  background: rgba(231, 76, 60, 0.15);
+  color: var(--danger);
+}
+
+@media (max-width: 992px) {
+  .billing-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .billing-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .course-revenue-item {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .course-stats {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
 }
 </style>
