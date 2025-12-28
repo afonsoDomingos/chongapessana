@@ -160,6 +160,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 import { notify } from '../utils/swal'
+import API_URL from '../config/api'
 
 const auth = useAuthStore()
 const ticket = ref(null)
@@ -172,7 +173,7 @@ const allImages = ['hero.jpg', 'portrait_bw.png', 'flamingos.jpg', 'sunset.jpg',
 const fetchTicket = async () => {
   if (!auth.isAuthenticated) return
   try {
-    const res = await axios.get('http://localhost:5000/api/expo/my-ticket', {
+    const res = await axios.get(`${API_URL}/api/expo/my-ticket`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
     ticket.value = res.data
@@ -184,7 +185,7 @@ const fetchTicket = async () => {
 const initPurchase = async () => {
   loading.value = true
   try {
-    const res = await axios.post('http://localhost:5000/api/expo/purchase', {}, {
+    const res = await axios.post(`${API_URL}/api/expo/purchase`, {}, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
     ticket.value = res.data
@@ -204,7 +205,7 @@ const uploadProof = async (e) => {
   formData.append('proof', file)
 
   try {
-    const res = await axios.post('http://localhost:5000/api/expo/upload-proof', formData, {
+    const res = await axios.post(`${API_URL}/api/expo/upload-proof`, formData, {
       headers: { 
         Authorization: `Bearer ${auth.token}`,
         'Content-Type': 'multipart/form-data'

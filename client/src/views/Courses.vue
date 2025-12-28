@@ -78,6 +78,7 @@ import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 import { useRouter } from 'vue-router'
 import { notify } from '../utils/swal'
+import API_URL from '../config/api'
 
 const courses = ref([])
 const loading = ref(false)
@@ -86,7 +87,7 @@ const router = useRouter()
 
 const fetchCourses = async () => {
   try {
-    const res = await axios.get('http://localhost:5000/api/courses')
+    const res = await axios.get(`${API_URL}/api/courses`)
     courses.value = res.data
   } catch (err) {
     console.error(err)
@@ -102,7 +103,7 @@ const enroll = async (courseId) => {
   
   loading.value = true
   try {
-    await axios.post('http://localhost:5000/api/courses/enroll', { courseId }, {
+    await axios.post(`${API_URL}/api/courses/enroll`, { courseId }, {
         headers: { Authorization: `Bearer ${auth.token}` }
     })
     notify.success('Inscrição Feita!', 'Vai ao teu painel e envia o comprovativo de pagamento.')

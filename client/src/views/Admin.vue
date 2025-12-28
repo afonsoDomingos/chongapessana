@@ -136,6 +136,7 @@ import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 import { notify } from '../utils/swal'
 import Swal from 'sweetalert2'
+import API_URL from '../config/api'
 
 const auth = useAuthStore()
 const enrollments = ref([])
@@ -175,7 +176,7 @@ const addMaterial = async (courseId) => {
         return
     }
     try {
-        await axios.post(`http://localhost:5000/api/admin/courses/${courseId}/materials`, newMaterial.value, {
+        await axios.post(`${API_URL}/api/admin/courses/${courseId}/materials`, newMaterial.value, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         notify.success('Sucesso!', 'Material adicionado.')
@@ -188,7 +189,7 @@ const addMaterial = async (courseId) => {
 
 const deleteMaterial = async (courseId, materialId) => {
     try {
-        await axios.delete(`http://localhost:5000/api/admin/courses/${courseId}/materials/${materialId}`, {
+        await axios.delete(`${API_URL}/api/admin/courses/${courseId}/materials/${materialId}`, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         notify.success('Removido!', 'Material removido.')
@@ -200,7 +201,7 @@ const deleteMaterial = async (courseId, materialId) => {
 
 const fetchAllEnrollments = async () => {
     try {
-        const res = await axios.get('http://localhost:5000/api/admin/enrollments', {
+        const res = await axios.get(`${API_URL}/api/admin/enrollments`, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         enrollments.value = res.data
@@ -211,7 +212,7 @@ const fetchAllEnrollments = async () => {
 
 const fetchCourses = async () => {
     try {
-        const res = await axios.get('http://localhost:5000/api/courses')
+        const res = await axios.get(`${API_URL}/api/courses`)
         courses.value = res.data
     } catch (err) {
         console.error(err)
@@ -234,7 +235,7 @@ const deleteCourse = async (id) => {
     
     if (result.isConfirmed) {
         try {
-            await axios.delete(`http://localhost:5000/api/admin/courses/${id}`, {
+            await axios.delete(`${API_URL}/api/admin/courses/${id}`, {
                 headers: { Authorization: `Bearer ${auth.token}` }
             })
             notify.success('Eliminado!', 'Curso eliminado com sucesso.')
@@ -247,7 +248,7 @@ const deleteCourse = async (id) => {
 
 const updateStatus = async (id, status) => {
     try {
-        await axios.patch(`http://localhost:5000/api/admin/enrollments/${id}`, { status }, {
+        await axios.patch(`${API_URL}/api/admin/enrollments/${id}`, { status }, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         fetchAllEnrollments()
@@ -258,7 +259,7 @@ const updateStatus = async (id, status) => {
 
 const handleCreateCourse = async () => {
     try {
-        await axios.post('http://localhost:5000/api/admin/courses', newCourse.value, {
+        await axios.post(`${API_URL}/api/admin/courses`, newCourse.value, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         notify.success('Sucesso!', 'Curso criado com sucesso.')

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import API_URL from '../config/api';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -15,7 +16,7 @@ export const useAuthStore = defineStore('auth', {
         async login(credentials) {
             this.loading = true;
             try {
-                const res = await axios.post('http://localhost:5000/api/auth/login', credentials);
+                const res = await axios.post(`${API_URL}/api/auth/login`, credentials);
                 this.token = res.data.token;
                 this.user = res.data.user;
                 localStorage.setItem('token', this.token);
@@ -31,7 +32,7 @@ export const useAuthStore = defineStore('auth', {
         async register(userData) {
             this.loading = true;
             try {
-                const res = await axios.post('http://localhost:5000/api/auth/register', userData);
+                const res = await axios.post(`${API_URL}/api/auth/register`, userData);
                 this.token = res.data.token;
                 this.user = res.data.user;
                 localStorage.setItem('token', this.token);
@@ -47,7 +48,7 @@ export const useAuthStore = defineStore('auth', {
         async updateProfile(userData) {
             this.loading = true;
             try {
-                const res = await axios.put('http://localhost:5000/api/auth/profile', userData, {
+                const res = await axios.put(`${API_URL}/api/auth/profile`, userData, {
                     headers: { Authorization: `Bearer ${this.token}` }
                 });
                 this.user = res.data.user;

@@ -150,13 +150,14 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 import { notify } from '../utils/swal'
+import API_URL from '../config/api'
 
 const auth = useAuthStore()
 const enrollments = ref([])
 
 const fetchEnrollments = async () => {
     try {
-        const res = await axios.get('http://localhost:5000/api/courses/my-courses', {
+        const res = await axios.get(`${API_URL}/api/courses/my-courses`, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
         enrollments.value = res.data
@@ -174,7 +175,7 @@ const onFileChange = async (e, enrollmentId) => {
     formData.append('enrollmentId', enrollmentId)
 
     try {
-        await axios.post('http://localhost:5000/api/courses/upload-proof', formData, {
+        await axios.post(`${API_URL}/api/courses/upload-proof`, formData, {
             headers: { 
                 Authorization: `Bearer ${auth.token}`,
                 'Content-Type': 'multipart/form-data'
