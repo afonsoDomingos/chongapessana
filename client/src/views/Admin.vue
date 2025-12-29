@@ -213,15 +213,84 @@
             <!-- Materials List -->
             <div class="materials-list-admin">
               <div v-for="material in course.materials" :key="material._id" class="material-item-admin">
-                <i :class="getMaterialIcon(material.type)"></i>
-                <span class="material-title">{{ material.title }}</span>
-                <a :href="material.url" target="_blank" class="material-link">Abrir</a>
-                <button @click="deleteMaterial(course._id, material._id)" class="btn-remove-material">
-                  <i class="fas fa-times"></i>
-                </button>
+                <!-- Preview Thumbnail -->
+                <div class="material-preview" @click="openPreview(material)">
+                  <!-- Image Preview -->
+                  <img 
+                    v-if="material.type === 'image'" 
+                    :src="material.url" 
+                    :alt="material.title"
+                    class="preview-thumb"
+                  />
+                  <!-- Video Preview -->
+                  <div v-else-if="material.type === 'video'" class="preview-video-thumb">
+                    <i class="fas fa-play-circle"></i>
+                  </div>
+                  <!-- PDF Preview -->
+                  <div v-else-if="material.type === 'pdf'" class="preview-pdf-thumb">
+                    <i class="fas fa-file-pdf"></i>
+                  </div>
+                  <!-- Default -->
+                  <div v-else class="preview-default-thumb">
+                    <i class="fas fa-file"></i>
+                  </div>
+                  <span class="preview-overlay"><i class="fas fa-eye"></i></span>
+                </div>
+                
+                <!-- Material Info -->
+                <div class="material-info">
+                  <span class="material-title">{{ material.title }}</span>
+                  <span class="material-type-badge">{{ material.type }}</span>
+                </div>
+                
+                <!-- Actions -->
+                <div class="material-actions">
+                  <a :href="material.url" target="_blank" class="btn-view-material" title="Ver">
+                    <i class="fas fa-external-link-alt"></i>
+                  </a>
+                  <button @click="deleteMaterial(course._id, material._id)" class="btn-remove-material" title="Remover">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
               </div>
               <p v-if="!course.materials?.length" class="no-materials">Nenhum material adicionado</p>
             </div>
+          </div>
+        </div>
+        
+        <!-- Preview Modal -->
+        <div v-if="previewMaterial" class="preview-modal" @click.self="closePreview">
+          <div class="preview-modal-content">
+            <button class="preview-close" @click="closePreview"><i class="fas fa-times"></i></button>
+            <h4>{{ previewMaterial.title }}</h4>
+            
+            <!-- Image Preview -->
+            <img 
+              v-if="previewMaterial.type === 'image'" 
+              :src="previewMaterial.url" 
+              :alt="previewMaterial.title"
+              class="preview-full-image"
+            />
+            
+            <!-- Video Preview -->
+            <video 
+              v-else-if="previewMaterial.type === 'video'" 
+              :src="previewMaterial.url" 
+              controls
+              class="preview-full-video"
+            ></video>
+            
+            <!-- PDF Preview -->
+            <iframe 
+              v-else-if="previewMaterial.type === 'pdf'" 
+              :src="previewMaterial.url"
+              class="preview-full-pdf"
+            ></iframe>
+            
+            <!-- Download Button -->
+            <a :href="previewMaterial.url" target="_blank" download class="btn-download">
+              <i class="fas fa-download"></i> Baixar Arquivo
+            </a>
           </div>
         </div>
         <div v-if="!courses.length" class="empty-msg">
@@ -277,6 +346,16 @@ const billingStats = ref({
     pendingCount: 0,
     courseBreakdown: []
 })
+
+const previewMaterial = ref(null)
+
+const openPreview = (material) => {
+    previewMaterial.value = material
+}
+
+const closePreview = () => {
+    previewMaterial.value = null
+}
 
 const newCourse = ref({
     title: { pt: '', en: '' },
@@ -807,6 +886,188 @@ onMounted(fetchAllEnrollments)
   font-style: italic;
   text-align: center;
   padding: 1rem;
+}
+
+/* Material Preview Styles */
+.material-preview {
+  width: 80px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.material-preview:hover .preview-overlay {
+  opacity: 1;
+}
+
+.preview-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-video-thumb,
+.preview-pdf-thumb,
+.preview-default-thumb {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.preview-video-thumb {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.preview-pdf-thumb {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+.preview-default-thumb {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.material-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.material-type-badge {
+  font-size: 0.7rem;
+  background: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  width: fit-content;
+  text-transform: uppercase;
+}
+
+.material-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-view-material {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: none;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.btn-view-material:hover {
+  background: #2ecc71;
+  color: white;
+}
+
+/* Preview Modal */
+.preview-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.preview-modal-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  position: relative;
+}
+
+.preview-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: none;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.preview-modal-content h4 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  padding-right: 2rem;
+}
+
+.preview-full-image {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+}
+
+.preview-full-video {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+}
+
+.preview-full-pdf {
+  width: 100%;
+  min-width: 600px;
+  height: 70vh;
+  border: none;
+  border-radius: 8px;
+}
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.8rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.btn-download i {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .preview-full-pdf {
+    min-width: 100%;
+    height: 50vh;
+  }
 }
 
 /* Billing Section */
