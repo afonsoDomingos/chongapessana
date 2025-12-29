@@ -205,9 +205,21 @@
                      :alt="currentLesson.title"
                      class="image-player" />
                 
-                <iframe v-else-if="currentLesson.type === 'pdf'" 
-                        :src="currentLesson.url"
-                        class="pdf-player"></iframe>
+                <!-- PDF Viewer using Google Docs -->
+                <div v-else-if="currentLesson.type === 'pdf'" class="pdf-container">
+                  <iframe 
+                    :src="'https://docs.google.com/viewer?url=' + encodeURIComponent(currentLesson.url) + '&embedded=true'"
+                    class="pdf-player"
+                    frameborder="0"></iframe>
+                  
+                  <!-- Fallback if iframe doesn't load -->
+                  <div class="pdf-fallback">
+                    <p><i class="fas fa-file-pdf"></i> Não consegue visualizar o PDF?</p>
+                    <a :href="currentLesson.url" target="_blank" class="btn-open-pdf">
+                      <i class="fas fa-external-link-alt"></i> Abrir em Nova Aba
+                    </a>
+                  </div>
+                </div>
               </div>
               
               <!-- Lesson Actions -->
@@ -918,10 +930,54 @@ onMounted(fetchEnrollments)
   max-height: 500px;
 }
 
+.pdf-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .pdf-player {
   width: 100%;
   height: 500px;
   border: none;
+  background: #fff;
+}
+
+.pdf-fallback {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pdf-fallback p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.pdf-fallback i {
+  color: var(--accent);
+  margin-right: 0.3rem;
+}
+
+.btn-open-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-open-pdf:hover {
+  transform: scale(1.05);
 }
 
 .lesson-actions {
