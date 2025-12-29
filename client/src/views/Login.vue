@@ -23,7 +23,17 @@
         </div>
         <div class="form-group animate-slide" style="--delay: 0.2s">
           <label><i class="fas fa-lock"></i> Password</label>
-          <input v-model="password" type="password" placeholder="••••••••" required />
+          <div class="password-wrapper">
+            <input 
+              v-model="password" 
+              :type="showPassword ? 'text' : 'password'" 
+              placeholder="••••••••" 
+              required 
+            />
+            <button type="button" class="toggle-password" @click="showPassword = !showPassword">
+              <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+          </div>
           <div class="input-glow"></div>
         </div>
         <button type="submit" class="btn-primary animate-slide" style="--delay: 0.3s" :disabled="auth.loading">
@@ -48,6 +58,7 @@ import { notify } from '../utils/swal'
 
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -254,6 +265,32 @@ const handleLogin = async () => {
   font-size: 1rem;
   transition: all 0.4s ease;
   box-sizing: border-box;
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  padding-right: 3rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  padding: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.toggle-password:hover {
+  color: var(--accent);
 }
 
 .input-glow {
