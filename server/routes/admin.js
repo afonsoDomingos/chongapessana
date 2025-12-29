@@ -5,35 +5,60 @@ const { auth, admin } = require('../middleware/auth');
 const ExpoTicket = require('../models/ExpoTicket');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
-const { cloudinary, storage } = require('../config/cloudinary');
+const { cloudinary } = require('../config/cloudinary');
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Configure Cloudinary Storage for materials
-const materialStorage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: 'chonga-materials',
-        resource_type: 'auto',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'mp4', 'webm']
-    }
+// Use memory storage for custom Cloudinary upload
+const memoryStorage = multer.memoryStorage();
+const uploadMaterial = multer({
+    storage: memoryStorage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
-
-const uploadMaterial = multer({ storage: materialStorage });
 
 router.use(auth, admin);
 
-// Upload Material File
+// Upload Material File with proper resource_type handling
 router.post('/upload-material', uploadMaterial.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: 'Nenhum arquivo enviado' });
         }
+
+        const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+
+        // Determine resource_type based on file type
+        let resourceType = 'auto';
+        if (fileExtension === 'pdf') {
+            resourceType = 'raw';
+        } else if (['mp4', 'webm', 'mov'].includes(fileExtension)) {
+            resourceType = 'video';
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+            resourceType = 'image';
+        }
+
+        // Upload to Cloudinary with correct resource_type
+        const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: 'chonga-materials',
+                    resource_type: resourceType,
+                    public_id: `material_${Date.now()}_${req.file.originalname.replace(/\.[^/.]+$/, '')}`
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            uploadStream.end(req.file.buffer);
+        });
+
         res.json({
-            url: req.file.path,
-            public_id: req.file.filename
+            url: result.secure_url,
+            public_id: result.public_id,
+            resource_type: resourceType
         });
     } catch (err) {
+        console.error('Upload error:', err);
         res.status(500).json({ message: err.message });
     }
 });
