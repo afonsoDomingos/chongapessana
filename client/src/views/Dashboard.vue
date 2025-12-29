@@ -1,231 +1,258 @@
 <template>
-  <div class="dashboard-page animate-fade">
-    <header class="dashboard-header">
-      <h1 class="cinematic-font reveal-text">{{ $t('nav.dashboard') }}</h1>
-      <div class="welcome-banner glass animate-up">
-        <div class="user-info">
-          <div class="avatar-circle">
-            {{ auth.user?.name?.charAt(0) }}
-          </div>
-          <div class="user-details">
-            <h2>{{ $i18n.locale === 'pt' ? 'Bem-vindo de volta,' : 'Welcome back,' }} {{ auth.user?.name }}</h2>
-            <p>{{ $i18n.locale === 'pt' ? 'Gerencie seus cursos e progresso aqui.' : 'Manage your courses and progress here.' }}</p>
-          </div>
+  <div class="academy-dashboard">
+    <!-- Sidebar Navigation -->
+    <aside class="dashboard-sidebar">
+      <div class="sidebar-header">
+        <div class="user-avatar-large">
+          {{ auth.user?.name?.charAt(0) }}
         </div>
-      </div>
-    </header>
-
-    <section class="my-courses-section">
-      <div class="section-header reveal-text delay-1">
-        <h3 class="cinematic-font"><i class="fas fa-film"></i> {{ $t('nav.courses') }}</h3>
+        <h3>{{ auth.user?.name }}</h3>
+        <p class="user-email">{{ auth.user?.email }}</p>
       </div>
       
-      <div v-if="enrollments.length" class="enrollments-grid">
-        <div v-for="(enrollment, index) in enrollments" 
-             :key="enrollment._id" 
-             class="enrollment-card glass animate-up"
-             :style="{ animationDelay: (index * 0.1) + 's' }">
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item" :class="{ active: !selectedCourse }" @click.prevent="selectedCourse = null">
+          <i class="fas fa-play-circle"></i>
+          <span>Meus Cursos</span>
+          <span class="nav-badge">{{ approvedCourses.length }}</span>
+        </a>
+        <router-link to="/courses" class="nav-item explore">
+          <i class="fas fa-compass"></i>
+          <span>Explorar Cursos</span>
+        </router-link>
+      </nav>
+      
+      <div class="sidebar-stats">
+        <div class="stat-item">
+          <span class="stat-number">{{ approvedCourses.length }}</span>
+          <span class="stat-label">Cursos Ativos</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">{{ totalLessonsCompleted }}</span>
+          <span class="stat-label">Aulas Concluídas</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="header-content">
+          <h1>Meus Cursos</h1>
+          <p>Continue de onde parou ou explore novos cursos</p>
+        </div>
+        <router-link to="/courses" class="btn-explore">
+          <i class="fas fa-plus"></i> Novo Curso
+        </router-link>
+      </header>
+
+      <!-- Continue Learning Section -->
+      <section v-if="approvedCourses.length && !selectedCourse" class="continue-section">
+        <h2><i class="fas fa-graduation-cap"></i> Continuar a Aprender</h2>
+        
+        <div class="courses-grid">
+          <div v-for="enrollment in approvedCourses" 
+               :key="enrollment._id" 
+               class="course-card"
+               @click="selectCourse(enrollment)">
+            
+            <!-- Course Thumbnail -->
+            <div class="course-thumbnail">
+              <div class="thumbnail-gradient"></div>
+              <div class="thumbnail-overlay">
+                <i class="fas fa-play"></i>
+              </div>
+              <div class="course-progress-indicator">
+                <div class="progress-ring">
+                  <svg viewBox="0 0 36 36">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle" :stroke-dasharray="`${getProgress(enrollment)}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  </svg>
+                  <span class="progress-text">{{ getProgress(enrollment) }}%</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Course Details -->
+            <div class="course-details">
+              <span class="course-category">{{ enrollment.courseId.category || 'Workshop' }}</span>
+              <h3 class="course-title">{{ enrollment.courseId.title?.pt || enrollment.courseId.title }}</h3>
+              
+              <div class="course-meta">
+                <span><i class="fas fa-book"></i> {{ enrollment.courseId.materials?.length || 0 }} aulas</span>
+                <span><i class="fas fa-check-circle"></i> {{ getCompletedCount(enrollment) }} concluídas</span>
+              </div>
+              
+              <div class="course-progress-bar">
+                <div class="progress-fill" :style="{ width: getProgress(enrollment) + '%' }"></div>
+              </div>
+              
+              <button class="btn-continue">
+                <i class="fas fa-play"></i> Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pending Courses Section -->
+      <section v-if="pendingCourses.length && !selectedCourse" class="pending-section">
+        <h2><i class="fas fa-hourglass-half"></i> Aguardando Aprovação</h2>
+        
+        <div class="pending-courses-list">
+          <div v-for="enrollment in pendingCourses" :key="enrollment._id" class="pending-course-card">
+            <div class="pending-icon"><i class="fas fa-clock"></i></div>
+            <div class="pending-info">
+              <h4>{{ enrollment.courseId.title?.pt || enrollment.courseId.title }}</h4>
+              <span class="pending-status">Aguardando validação do pagamento</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Empty State -->
+      <section v-if="!enrollments.length && !selectedCourse" class="empty-section">
+        <div class="empty-content">
+          <i class="fas fa-graduation-cap"></i>
+          <h3>Nenhum curso ainda</h3>
+          <p>Explore nossos cursos e comece sua jornada de aprendizado</p>
+          <router-link to="/courses" class="btn-primary">
+            <i class="fas fa-search"></i> Explorar Cursos
+          </router-link>
+        </div>
+      </section>
+
+      <!-- Course Player View -->
+      <section v-if="selectedCourse" class="course-player-section">
+        <!-- Back Button -->
+        <button class="btn-back" @click="selectedCourse = null">
+          <i class="fas fa-arrow-left"></i> Voltar aos Cursos
+        </button>
+        
+        <!-- Course Header -->
+        <div class="player-header">
+          <div class="player-info">
+            <span class="player-category">{{ selectedCourse.courseId.category || 'Workshop' }}</span>
+            <h2>{{ selectedCourse.courseId.title?.pt || selectedCourse.courseId.title }}</h2>
+            <div class="player-progress">
+              <div class="progress-bar-player">
+                <div class="progress-fill" :style="{ width: getProgress(selectedCourse) + '%' }"></div>
+              </div>
+              <span>{{ getProgress(selectedCourse) }}% completo</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Course Content Layout -->
+        <div class="course-content-layout">
+          <!-- Lessons Sidebar -->
+          <aside class="lessons-sidebar">
+            <div class="sidebar-title">
+              <i class="fas fa-list"></i>
+              <span>Conteúdo do Curso</span>
+            </div>
+            
+            <div class="lessons-list-sidebar">
+              <div v-for="(material, idx) in selectedCourse.courseId.materials" 
+                   :key="material._id"
+                   class="lesson-sidebar-item"
+                   :class="{ 
+                     'active': currentLessonIndex === idx,
+                     'completed': isLessonCompleted(selectedCourse._id, idx)
+                   }"
+                   @click="selectLesson(material, idx)">
+                
+                <div class="lesson-status">
+                  <span v-if="isLessonCompleted(selectedCourse._id, idx)" class="status-check">
+                    <i class="fas fa-check"></i>
+                  </span>
+                  <span v-else class="status-number">{{ idx + 1 }}</span>
+                </div>
+                
+                <div class="lesson-sidebar-info">
+                  <span class="lesson-sidebar-title">{{ material.title }}</span>
+                  <span class="lesson-sidebar-type">
+                    <i :class="getMaterialIcon(material.type)"></i>
+                    {{ getLessonTypeName(material.type) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </aside>
           
-          <div class="card-body">
-            <div class="course-info">
-              <span class="category-tag">{{ enrollment.courseId.category || 'Workshop' }}</span>
-              <h4>{{ enrollment.courseId.title[$i18n.locale] }}</h4>
-              <div class="status-group">
-                <span :class="['status-badge', enrollment.status]">
-                  <i :class="statusIcon(enrollment.status)"></i>
-                  {{ $t(`courses.${enrollment.status}`) }}
+          <!-- Main Player Area -->
+          <div class="player-main">
+            <div v-if="currentLesson" class="lesson-player">
+              <!-- Lesson Title -->
+              <div class="lesson-header">
+                <h3>Aula {{ currentLessonIndex + 1 }}: {{ currentLesson.title }}</h3>
+                <span class="lesson-type-badge-player">
+                  <i :class="getMaterialIcon(currentLesson.type)"></i>
+                  {{ getLessonTypeName(currentLesson.type) }}
                 </span>
               </div>
-            </div>
-
-            <!-- Pending Flow - WITH PAYMENT METHODS FIRST -->
-            <div v-if="enrollment.status === 'pending'" class="action-zone pending">
               
-              <!-- Step 1: Show Payment Methods -->
-              <div class="payment-step" v-if="!enrollment.proofUrl">
-                <h5><i class="fas fa-credit-card"></i> Passo 1: Faz o Pagamento</h5>
-                <p class="step-desc">Escolhe um método e envia o valor do curso:</p>
+              <!-- Content Player -->
+              <div class="content-player">
+                <video v-if="currentLesson.type === 'video'" 
+                       :src="currentLesson.url" 
+                       controls 
+                       class="video-player"></video>
                 
-                <div class="payment-methods-grid">
-                  <div class="pay-method-card">
-                    <img src="/images/emola-logo.png" alt="E-Mola" class="pay-logo" />
-                    <div class="pay-info">
-                      <span class="pay-number">868 497 771</span>
-                      <span class="pay-owner">Castigo Alexandre Pessana</span>
-                    </div>
-                  </div>
-                  
-                  <div class="pay-method-card">
-                    <img src="/images/mpesa-logo.png" alt="M-Pesa" class="pay-logo" />
-                    <div class="pay-info">
-                      <span class="pay-number">847 877 405</span>
-                      <span class="pay-owner">Afonso Domingos</span>
-                    </div>
-                  </div>
-                  
-                  <div class="pay-method-card">
-                    <img src="/images/visa-logo.png" alt="Visa/BIM" class="pay-logo" />
-                    <div class="pay-info">
-                      <span class="pay-number-sm">NIB: 0001 0000 0074 3010 49557</span>
-                      <span class="pay-owner">Millennium BIM</span>
-                    </div>
-                  </div>
-                  
-                  <div class="pay-method-card">
-                    <img src="/images/paypal-logo.png" alt="PayPal" class="pay-logo" />
-                    <div class="pay-info">
-                      <span class="pay-number-sm">karinganastudio23@gmail.com</span>
-                    </div>
-                  </div>
-                </div>
+                <img v-else-if="currentLesson.type === 'image'" 
+                     :src="currentLesson.url" 
+                     :alt="currentLesson.title"
+                     class="image-player" />
+                
+                <iframe v-else-if="currentLesson.type === 'pdf'" 
+                        :src="currentLesson.url"
+                        class="pdf-player"></iframe>
               </div>
-
-              <!-- Step 2: Upload Proof -->
-              <div class="upload-wrapper" v-if="!enrollment.proofUrl">
-                <h5><i class="fas fa-upload"></i> Passo 2: Envia o Comprovativo</h5>
-                <p class="step-desc">Após o pagamento, faz upload do comprovativo:</p>
-                <label class="custom-file-upload btn-primary glow-effect">
-                  <input type="file" @change="(e) => onFileChange(e, enrollment._id)" accept="image/*,application/pdf" />
-                  <span><i class="fas fa-cloud-upload-alt"></i> Selecionar Ficheiro</span>
-                </label>
-              </div>
-
-              <!-- Waiting for validation -->
-              <div v-else class="waiting-box">
-                <div class="waiting-icon"><i class="fas fa-hourglass-half"></i></div>
-                <h5>Comprovativo Enviado!</h5>
-                <p><i class="fas fa-clock"></i> {{ $i18n.locale === 'pt' ? 'Aguardando validação do administrador...' : 'Waiting for admin validation...' }}</p>
-                <div class="progress-bar-thin"></div>
+              
+              <!-- Lesson Actions -->
+              <div class="lesson-actions">
+                <button v-if="currentLessonIndex > 0" class="btn-nav prev" @click="prevLesson">
+                  <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                
+                <button v-if="!isLessonCompleted(selectedCourse._id, currentLessonIndex)"
+                        class="btn-complete-lesson"
+                        @click="markCurrentAsCompleted">
+                  <i class="fas fa-check"></i> Marcar como Concluída
+                </button>
+                
+                <span v-else class="completed-badge">
+                  <i class="fas fa-check-circle"></i> Concluída
+                </span>
+                
+                <button v-if="currentLessonIndex < selectedCourse.courseId.materials.length - 1" 
+                        class="btn-nav next"
+                        @click="nextLesson">
+                  Próxima <i class="fas fa-chevron-right"></i>
+                </button>
+                
+                <a :href="currentLesson.url" target="_blank" download class="btn-download-lesson">
+                  <i class="fas fa-download"></i>
+                </a>
               </div>
             </div>
-
-            <!-- Approved Flow - COURSE ACADEMY STYLE -->
-            <div v-if="enrollment.status === 'approved'" class="action-zone approved">
-              <div class="access-granted-badge">
-                <i class="fas fa-check-circle"></i>
-                <span>Acesso Liberado!</span>
-              </div>
-              
-              <!-- Course Progress Header -->
-              <div class="course-progress-header">
-                <div class="progress-info">
-                  <span class="progress-text">Progresso do Curso</span>
-                  <span class="progress-percent">{{ calculateProgress(enrollment.courseId.materials) }}%</span>
-                </div>
-                <div class="progress-bar-course">
-                  <div class="progress-fill" :style="{ width: calculateProgress(enrollment.courseId.materials) + '%' }"></div>
-                </div>
-              </div>
-              
-              <!-- Course Curriculum -->
-              <div class="course-curriculum">
-                <h5><i class="fas fa-list-ol"></i> Conteúdo do Curso</h5>
-                
-                <div v-if="enrollment.courseId.materials?.length" class="lessons-list">
-                  <div v-for="(material, idx) in enrollment.courseId.materials" 
-                       :key="material._id"
-                       class="lesson-item"
-                       :class="{ 'completed': isLessonCompleted(enrollment._id, idx) }"
-                       @click="openLesson(material, enrollment._id, idx)">
-                    
-                    <!-- Lesson Number -->
-                    <div class="lesson-number">
-                      <span v-if="isLessonCompleted(enrollment._id, idx)" class="check-icon">
-                        <i class="fas fa-check"></i>
-                      </span>
-                      <span v-else>{{ idx + 1 }}</span>
-                    </div>
-                    
-                    <!-- Lesson Content Type Icons -->
-                    <div class="lesson-type-icons">
-                      <span v-if="material.type === 'video'" class="type-icon video" title="Vídeo">
-                        <i class="fas fa-play-circle"></i>
-                      </span>
-                      <span v-if="material.type === 'pdf'" class="type-icon pdf" title="PDF">
-                        <i class="fas fa-file-pdf"></i>
-                      </span>
-                      <span v-if="material.type === 'image'" class="type-icon image" title="Imagem">
-                        <i class="fas fa-image"></i>
-                      </span>
-                    </div>
-                    
-                    <!-- Lesson Info -->
-                    <div class="lesson-info">
-                      <span class="lesson-title">Aula {{ idx + 1 }}: {{ material.title }}</span>
-                      <span class="lesson-type-badge">{{ getLessonTypeName(material.type) }}</span>
-                    </div>
-                    
-                    <!-- Lesson Action -->
-                    <div class="lesson-action">
-                      <i class="fas fa-chevron-right"></i>
-                    </div>
-                  </div>
-                </div>
-                
-                <div v-else class="no-materials-msg">
-                  <i class="fas fa-hourglass-half"></i>
-                  <p>Os materiais serão disponibilizados em breve!</p>
-                </div>
-              </div>
-              
-              <!-- Lesson Modal/Player -->
-              <div v-if="activeLessonModal" class="lesson-modal" @click.self="closeLessonModal">
-                <div class="lesson-modal-content">
-                  <div class="modal-header">
-                    <h4><i class="fas fa-play"></i> {{ activeLessonModal.title }}</h4>
-                    <button class="close-modal" @click="closeLessonModal">
-                      <i class="fas fa-times"></i>
-                    </button>
-                  </div>
-                  
-                  <div class="modal-body">
-                    <!-- Video Player -->
-                    <video v-if="activeLessonModal.type === 'video'" 
-                           :src="activeLessonModal.url" 
-                           controls 
-                           autoplay
-                           class="lesson-video"></video>
-                    
-                    <!-- Image Viewer -->
-                    <img v-else-if="activeLessonModal.type === 'image'" 
-                         :src="activeLessonModal.url" 
-                         :alt="activeLessonModal.title"
-                         class="lesson-image" />
-                    
-                    <!-- PDF Viewer -->
-                    <iframe v-else-if="activeLessonModal.type === 'pdf'" 
-                            :src="activeLessonModal.url"
-                            class="lesson-pdf"></iframe>
-                  </div>
-                  
-                  <div class="modal-footer">
-                    <button @click="markAsCompleted" class="btn-complete">
-                      <i class="fas fa-check"></i> Marcar como Concluída
-                    </button>
-                    <a :href="activeLessonModal.url" target="_blank" download class="btn-download">
-                      <i class="fas fa-download"></i> Baixar
-                    </a>
-                  </div>
-                </div>
-              </div>
+            
+            <!-- No Lesson Selected -->
+            <div v-else class="no-lesson-selected">
+              <i class="fas fa-play-circle"></i>
+              <h3>Selecione uma aula</h3>
+              <p>Clique em qualquer aula na lista ao lado</p>
             </div>
           </div>
         </div>
-      </div>
-      
-      <div v-else class="empty-state glass animate-up">
-        <i class="fas fa-graduation-cap large-icon"></i>
-        <p>{{ $i18n.locale === 'pt' ? 'Ainda não estás inscrito em nenhum curso.' : 'You are not enrolled in any courses yet.' }}</p>
-        <router-link to="/courses" class="btn-primary glow-effect">
-          {{ $i18n.locale === 'pt' ? 'Explorar Cursos' : 'Explore Courses' }}
-        </router-link>
-      </div>
-    </section>
+      </section>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 import { notify } from '../utils/swal'
@@ -233,63 +260,103 @@ import API_URL from '../config/api'
 
 const auth = useAuthStore()
 const enrollments = ref([])
-const activeLessonModal = ref(null)
-const currentEnrollmentId = ref(null)
-const currentLessonIdx = ref(null)
+const selectedCourse = ref(null)
+const currentLesson = ref(null)
+const currentLessonIndex = ref(0)
 
-// Load completed lessons from localStorage
+// Computed
+const approvedCourses = computed(() => enrollments.value.filter(e => e.status === 'approved'))
+const pendingCourses = computed(() => enrollments.value.filter(e => e.status === 'pending'))
+
+// Completed Lessons
 const getCompletedLessons = () => {
     const saved = localStorage.getItem('completedLessons')
     return saved ? JSON.parse(saved) : {}
 }
-
 const completedLessons = ref(getCompletedLessons())
+
+const totalLessonsCompleted = computed(() => 
+    Object.keys(completedLessons.value).filter(k => completedLessons.value[k]).length
+)
 
 const isLessonCompleted = (enrollmentId, lessonIdx) => {
     return completedLessons.value[`${enrollmentId}_${lessonIdx}`] === true
 }
 
-const calculateProgress = (materials) => {
-    if (!materials || materials.length === 0) return 0
-    const totalLessons = materials.length
+const getProgress = (enrollment) => {
+    if (!enrollment.courseId.materials?.length) return 0
+    const total = enrollment.courseId.materials.length
     let completed = 0
-    
-    // This is a simplified calculation - in production you'd track per-enrollment
-    Object.keys(completedLessons.value).forEach(key => {
-        if (completedLessons.value[key]) completed++
-    })
-    
-    return Math.min(Math.round((completed / totalLessons) * 100), 100)
+    for (let i = 0; i < total; i++) {
+        if (isLessonCompleted(enrollment._id, i)) completed++
+    }
+    return Math.round((completed / total) * 100)
+}
+
+const getCompletedCount = (enrollment) => {
+    if (!enrollment.courseId.materials?.length) return 0
+    const total = enrollment.courseId.materials.length
+    let completed = 0
+    for (let i = 0; i < total; i++) {
+        if (isLessonCompleted(enrollment._id, i)) completed++
+    }
+    return completed
 }
 
 const getLessonTypeName = (type) => {
-    switch (type) {
-        case 'video': return 'Vídeo Aula'
-        case 'pdf': return 'Material PDF'
-        case 'image': return 'Material Visual'
-        default: return 'Recurso'
+    const types = { video: 'Vídeo', pdf: 'PDF', image: 'Imagem' }
+    return types[type] || 'Arquivo'
+}
+
+const getMaterialIcon = (type) => {
+    const icons = { video: 'fas fa-play-circle', pdf: 'fas fa-file-pdf', image: 'fas fa-image' }
+    return icons[type] || 'fas fa-file'
+}
+
+const selectCourse = (enrollment) => {
+    selectedCourse.value = enrollment
+    currentLesson.value = null
+    currentLessonIndex.value = 0
+    
+    const materials = enrollment.courseId.materials
+    if (materials?.length) {
+        for (let i = 0; i < materials.length; i++) {
+            if (!isLessonCompleted(enrollment._id, i)) {
+                selectLesson(materials[i], i)
+                return
+            }
+        }
+        selectLesson(materials[0], 0)
     }
 }
 
-const openLesson = (material, enrollmentId, idx) => {
-    activeLessonModal.value = material
-    currentEnrollmentId.value = enrollmentId
-    currentLessonIdx.value = idx
+const selectLesson = (material, idx) => {
+    currentLesson.value = material
+    currentLessonIndex.value = idx
 }
 
-const closeLessonModal = () => {
-    activeLessonModal.value = null
-    currentEnrollmentId.value = null
-    currentLessonIdx.value = null
+const prevLesson = () => {
+    if (currentLessonIndex.value > 0) {
+        currentLessonIndex.value--
+        currentLesson.value = selectedCourse.value.courseId.materials[currentLessonIndex.value]
+    }
 }
 
-const markAsCompleted = () => {
-    if (currentEnrollmentId.value !== null && currentLessonIdx.value !== null) {
-        const key = `${currentEnrollmentId.value}_${currentLessonIdx.value}`
+const nextLesson = () => {
+    const materials = selectedCourse.value.courseId.materials
+    if (currentLessonIndex.value < materials.length - 1) {
+        currentLessonIndex.value++
+        currentLesson.value = materials[currentLessonIndex.value]
+    }
+}
+
+const markCurrentAsCompleted = () => {
+    if (selectedCourse.value && currentLessonIndex.value !== null) {
+        const key = `${selectedCourse.value._id}_${currentLessonIndex.value}`
         completedLessons.value[key] = true
         localStorage.setItem('completedLessons', JSON.stringify(completedLessons.value))
-        notify.success('Aula Concluída!', 'O seu progresso foi guardado.')
-        closeLessonModal()
+        notify.success('Aula Concluída!', 'Seu progresso foi salvo.')
+        nextLesson()
     }
 }
 
@@ -304,773 +371,795 @@ const fetchEnrollments = async () => {
     }
 }
 
-const onFileChange = async (e, enrollmentId) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    const formData = new FormData()
-    formData.append('proof', file)
-    formData.append('enrollmentId', enrollmentId)
-
-    try {
-        await axios.post(`${API_URL}/api/courses/upload-proof`, formData, {
-            headers: { 
-                Authorization: `Bearer ${auth.token}`,
-                'Content-Type': 'multipart/form-data'
-            }
-        })
-        notify.success('Enviado!', 'Comprovativo enviado com sucesso.')
-        fetchEnrollments()
-    } catch (err) {
-        notify.error('Erro', 'Erro ao enviar comprovativo')
-    }
-}
-
-const statusIcon = (status) => {
-    switch(status) {
-        case 'approved': return 'fas fa-check-circle'
-        case 'pending': return 'fas fa-hourglass-half'
-        case 'rejected': return 'fas fa-exclamation-circle'
-        default: return 'fas fa-info-circle'
-    }
-}
-
-const materialIcon = (type) => {
-    switch(type?.toLowerCase()) {
-        case 'video': return 'fas fa-play-circle'
-        case 'pdf': return 'fas fa-file-pdf'
-        case 'image': return 'fas fa-image'
-        default: return 'fas fa-file'
-    }
-}
-
 onMounted(fetchEnrollments)
 </script>
 
 <style scoped>
-.dashboard-page {
-    padding: 6rem 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.dashboard-header {
-    margin-bottom: 4rem;
-}
-
-.dashboard-header h1 {
-    font-size: 3rem;
-    margin-bottom: 2rem;
-    letter-spacing: 4px;
-}
-
-.welcome-banner {
-    padding: 2.5rem;
-    border-radius: 12px;
-}
-
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-}
-
-.avatar-circle {
-    width: 80px;
-    height: 80px;
-    background: var(--accent);
-    color: #000;
-    font-size: 2.5rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
-}
-
-.user-details h2 {
-    font-size: 1.8rem;
-    margin-bottom: 0.5rem;
-}
-
-.user-details p {
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-}
-
-.section-header {
-    margin-bottom: 2rem;
-}
-
-.section-header h3 {
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    color: var(--accent);
-    letter-spacing: 2px;
-}
-
-.enrollments-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 2rem;
-}
-
-.enrollment-card {
-    border-radius: 12px;
-    transition: transform 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-    display: flex;
-    flex-direction: column;
-}
-
-.enrollment-card:hover {
-    transform: translateY(-10px);
-}
-
-.card-body {
-    padding: 2rem;
-}
-
-.course-info {
-    margin-bottom: 2rem;
-}
-
-.course-info h4 {
-    font-size: 1.4rem;
-    line-height: 1.4;
-    margin: 0.8rem 0;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 1rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.status-badge.pending { background: rgba(241, 196, 15, 0.1); color: #f1c40f; border: 1px solid #f1c40f; }
-.status-badge.approved { background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid #2ecc71; }
-.status-badge.rejected { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: 1px solid #e74c3c; }
-
-.action-zone {
-    border-top: 1px solid var(--border);
-    padding-top: 1.5rem;
-}
-
-.instruction-text {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 1.2rem;
-}
-
-.custom-file-upload {
-    display: inline-block;
-    cursor: pointer;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.custom-file-upload input {
-    display: none;
-}
-
-.waiting-box {
-    text-align: center;
-    color: var(--text-secondary);
-}
-
-.progress-bar-thin {
-    height: 3px;
-    background: var(--accent);
-    width: 60%;
-    margin: 1rem auto 0;
-    border-radius: 2px;
-    animation: pulseWidth 2s infinite ease-in-out;
-}
-
-@keyframes pulseWidth {
-    0%, 100% { transform: scaleX(0.5); opacity: 0.3; }
-    50% { transform: scaleX(1); opacity: 1; }
-}
-
-.approved h5 {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    color: var(--accent);
-}
-
-.material-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    color: var(--text-primary);
-    text-decoration: none;
-    margin-bottom: 0.5rem;
-    transition: all 0.2s;
-}
-
-.material-item:hover {
-    background: rgba(255,255,255,0.1);
-    transform: translateX(10px);
-}
-
-.material-item .arrow {
-    margin-left: auto;
-    opacity: 0.3;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 5rem 2rem;
-    border-radius: 12px;
-}
-
-.large-icon {
-    font-size: 4rem;
-    color: var(--accent);
-    margin-bottom: 2rem;
-    opacity: 0.5;
-}
-
-@media (max-width: 768px) {
-    .dashboard-page { padding: 4rem 1rem; }
-    .user-info { flex-direction: column; text-align: center; }
-    .enrollments-grid { grid-template-columns: 1fr; }
-    .payment-methods-grid { grid-template-columns: 1fr; }
-}
-
-/* Payment Methods in Dashboard */
-.payment-step {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.payment-step h5 {
-  color: white;
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-}
-
-.payment-step h5 i {
-  margin-right: 0.5rem;
-  color: #667eea;
-}
-
-.step-desc {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-}
-
-.payment-methods-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.8rem;
-}
-
-.pay-method-card {
+/* Academy Dashboard Layout */
+.academy-dashboard {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem;
-  background: white;
-  border-radius: 12px;
-  transition: all 0.3s;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  min-height: 100vh;
+  background: var(--bg-primary);
 }
 
-.pay-method-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+/* Sidebar */
+.dashboard-sidebar {
+  width: 280px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 2rem 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
-.pay-logo {
-  width: 50px;
-  height: 35px;
-  object-fit: contain;
-}
-
-.pay-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.pay-number {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #333;
-  font-family: 'Courier New', monospace;
-}
-
-.pay-number-sm {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #333;
-  font-family: 'Courier New', monospace;
-}
-
-.pay-owner {
-  font-size: 0.7rem;
-  color: #666;
-}
-
-.upload-wrapper h5 {
-  color: white;
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-}
-
-.upload-wrapper h5 i {
-  margin-right: 0.5rem;
-  color: #667eea;
-}
-
-.waiting-box {
+.sidebar-header {
   text-align: center;
-  padding: 2rem;
-  background: rgba(102, 126, 234, 0.1);
-  border-radius: 12px;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  padding: 0 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.waiting-icon {
-  font-size: 2.5rem;
-  color: #667eea;
-  margin-bottom: 1rem;
-}
-
-.waiting-box h5 {
-  color: #a8b4e8;
-  margin-bottom: 0.5rem;
-}
-
-.waiting-box p {
-  color: var(--text-secondary);
-}
-
-/* Approved - Access Granted */
-.access-granted-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
-  border-radius: 30px;
-  color: white;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-}
-
-.access-granted-badge i {
-  font-size: 1.2rem;
-}
-
-.materials-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.material-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-  border-radius: 12px;
-  text-decoration: none;
-  border: 1px solid rgba(102, 126, 234, 0.2);
-  transition: all 0.3s;
-}
-
-.material-item:hover {
-  transform: translateX(10px);
-  border-color: #667eea;
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-}
-
-.material-icon-wrapper {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 12px;
+.user-avatar-large {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--accent), #667eea);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 1.3rem;
-}
-
-.material-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.material-name {
-  color: white;
-  font-weight: 600;
-}
-
-.material-type {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-
-.material-item .arrow {
-  color: #667eea;
-  opacity: 0.5;
-}
-
-.material-item:hover .arrow {
-  opacity: 1;
-}
-
-.no-materials-msg {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-}
-
-.no-materials-msg i {
   font-size: 2rem;
-  color: #667eea;
-  margin-bottom: 0.5rem;
-}
-
-.action-zone.approved h5 {
+  font-weight: 700;
   color: white;
-  margin-bottom: 1rem;
+  margin: 0 auto 1rem;
 }
 
-.action-zone.approved h5 i {
-  margin-right: 0.5rem;
-  color: #667eea;
+.sidebar-header h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
 }
 
-/* Course Progress Header */
-.course-progress-header {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: rgba(102, 126, 234, 0.1);
-  border-radius: 12px;
-  border: 1px solid rgba(102, 126, 234, 0.2);
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.progress-text {
-  font-size: 0.9rem;
+.user-email {
   color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
-.progress-percent {
+.sidebar-nav {
+  padding: 1.5rem 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.5rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.3s;
+  border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.nav-item.explore {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--accent), #667eea);
+  color: white;
+  margin: 1rem 1rem 0;
+  border-radius: 8px;
+  border: none;
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+}
+
+.sidebar-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1.5rem;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--accent);
 }
 
-.progress-bar-course {
-  height: 8px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Main Content */
+.dashboard-main {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.main-header h1 {
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.main-header p {
+  color: var(--text-secondary);
+}
+
+.btn-explore {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-explore:hover {
+  transform: scale(1.05);
+}
+
+/* Courses Grid */
+.continue-section h2, .pending-section h2 {
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.continue-section h2 i, .pending-section h2 i {
+  color: var(--accent);
+}
+
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.course-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s;
+}
+
+.course-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  border-color: var(--accent);
+}
+
+.course-thumbnail {
+  height: 160px;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbnail-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(231,76,60,0.3), rgba(102,126,234,0.3));
+}
+
+.thumbnail-overlay {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  transition: all 0.3s;
+}
+
+.course-card:hover .thumbnail-overlay {
+  background: var(--accent);
+  transform: scale(1.1);
+}
+
+.course-progress-indicator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.progress-ring {
+  width: 50px;
+  height: 50px;
+  position: relative;
+}
+
+.progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.circle-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.2);
+  stroke-width: 3;
+}
+
+.circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s;
+}
+
+.progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+}
+
+.course-details {
+  padding: 1.5rem;
+}
+
+.course-category {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.course-title {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.course-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.course-meta i {
+  margin-right: 0.3rem;
+}
+
+.course-progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin-bottom: 1rem;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), #667eea);
-  border-radius: 10px;
-  transition: width 0.5s ease;
+  border-radius: 2px;
+  transition: width 0.5s;
 }
 
-/* Course Curriculum */
-.course-curriculum {
-  margin-top: 1.5rem;
-}
-
-.course-curriculum h5 {
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-  font-size: 1rem;
-}
-
-/* Lessons List */
-.lessons-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.lesson-item {
+.btn-continue {
+  width: 100%;
+  padding: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  cursor: pointer;
+  justify-content: center;
+  gap: 0.5rem;
   transition: all 0.3s;
 }
 
-.lesson-item:hover {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.3);
-  transform: translateX(5px);
+.btn-continue:hover {
+  background: var(--accent);
+  color: white;
 }
 
-.lesson-item.completed {
-  background: rgba(46, 204, 113, 0.1);
-  border-color: rgba(46, 204, 113, 0.3);
+/* Course Player */
+.course-player-section {
+  animation: fadeIn 0.3s ease;
 }
 
-.lesson-number {
-  width: 40px;
-  height: 40px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s;
+}
+
+.btn-back:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.player-header {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.player-category {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.player-header h2 {
+  color: var(--text-primary);
+  margin: 0.5rem 0;
+}
+
+.player-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.progress-bar-player {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+
+.player-progress span {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.course-content-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+}
+
+/* Lessons Sidebar */
+.lessons-sidebar {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sidebar-title {
+  padding: 1rem 1.5rem;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lessons-list-sidebar {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.lesson-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-left: 3px solid transparent;
+}
+
+.lesson-sidebar-item:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.lesson-sidebar-item.active {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-left-color: var(--accent);
+}
+
+.lesson-sidebar-item.completed .lesson-status {
+  background: #2ecc71;
+}
+
+.lesson-status {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-primary);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary);
-  border-radius: 50%;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
-.lesson-item.completed .lesson-number {
-  background: #2ecc71;
+.status-check {
   color: white;
 }
 
-.check-icon {
-  font-size: 0.9rem;
-}
-
-.lesson-type-icons {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.type-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-
-.type-icon.video {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-}
-
-.type-icon.pdf {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: white;
-}
-
-.type-icon.image {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
-  color: white;
-}
-
-.lesson-info {
+.lesson-sidebar-info {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  min-width: 0;
 }
 
-.lesson-title {
-  font-weight: 600;
+.lesson-sidebar-title {
+  display: block;
   color: var(--text-primary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.lesson-type-badge {
+.lesson-sidebar-type {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
-.lesson-action {
-  color: var(--text-secondary);
-  transition: all 0.3s;
+.lesson-sidebar-type i {
+  margin-right: 0.3rem;
 }
 
-.lesson-item:hover .lesson-action {
-  color: var(--accent);
-  transform: translateX(3px);
-}
-
-/* Lesson Modal */
-.lesson-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 2rem;
-}
-
-.lesson-modal-content {
+/* Player Main */
+.player-main {
   background: var(--bg-secondary);
-  border-radius: 16px;
-  max-width: 1000px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: auto;
+  border-radius: 12px;
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 
-.modal-header {
+.lesson-player {
+  display: flex;
+  flex-direction: column;
+}
+
+.lesson-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255,255,255,0.03);
   border-bottom: 1px solid var(--border);
 }
 
-.modal-header h4 {
+.lesson-header h3 {
   color: var(--text-primary);
+}
+
+.lesson-type-badge-player {
+  background: rgba(102,126,234,0.2);
+  color: #667eea;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.content-player {
+  background: #000;
+  min-height: 400px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.modal-header h4 i {
-  color: var(--accent);
-}
-
-.close-modal {
-  background: rgba(231, 76, 60, 0.2);
-  color: #e74c3c;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s;
-}
-
-.close-modal:hover {
-  background: #e74c3c;
-  color: white;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  display: flex;
   justify-content: center;
-  background: #000;
 }
 
-.lesson-video {
+.video-player, .image-player {
   max-width: 100%;
-  max-height: 60vh;
-  border-radius: 8px;
+  max-height: 500px;
 }
 
-.lesson-image {
-  max-width: 100%;
-  max-height: 60vh;
-  border-radius: 8px;
-}
-
-.lesson-pdf {
+.pdf-player {
   width: 100%;
-  height: 60vh;
+  height: 500px;
   border: none;
-  border-radius: 8px;
 }
 
-.modal-footer {
+.lesson-actions {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 1rem;
   padding: 1.5rem;
-  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
-.btn-complete {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.8rem 1.5rem;
-  background: #2ecc71;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-complete:hover {
-  background: #27ae60;
-  transform: scale(1.05);
-}
-
-.btn-download {
+.btn-nav {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
   background: var(--bg-primary);
-  color: var(--text-primary);
   border: 1px solid var(--border);
+  color: var(--text-primary);
   border-radius: 8px;
-  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-nav:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-complete-lesson {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  background: #2ecc71;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
   font-weight: 600;
   transition: all 0.3s;
 }
 
-.btn-download:hover {
+.btn-complete-lesson:hover {
+  background: #27ae60;
+  transform: scale(1.05);
+}
+
+.completed-badge {
+  color: #2ecc71;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.btn-download-lesson {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.btn-download-lesson:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.no-lesson-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.no-lesson-selected i {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+/* Pending Section */
+.pending-section {
+  margin-top: 3rem;
+}
+
+.pending-courses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pending-course-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  border-radius: 12px;
+}
+
+.pending-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.pending-info h4 {
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.pending-status {
+  color: #f39c12;
+  font-size: 0.85rem;
+}
+
+/* Empty State */
+.empty-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.empty-content {
+  text-align: center;
+}
+
+.empty-content i {
+  font-size: 5rem;
+  color: var(--accent);
+  opacity: 0.3;
+  margin-bottom: 1.5rem;
+}
+
+.empty-content h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.empty-content p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
   background: var(--accent);
   color: white;
-  border-color: var(--accent);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .course-content-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .lessons-sidebar {
+    order: 2;
+  }
 }
 
 @media (max-width: 768px) {
-  .lesson-modal {
-    padding: 1rem;
-  }
-  
-  .lesson-modal-content {
-    max-height: 95vh;
-  }
-  
-  .modal-footer {
+  .academy-dashboard {
     flex-direction: column;
   }
   
-  .lesson-item {
-    flex-wrap: wrap;
+  .dashboard-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 1rem;
   }
   
-  .lesson-info {
-    min-width: 100%;
-    order: 3;
-    margin-top: 0.5rem;
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    text-align: left;
+    padding: 1rem;
+  }
+  
+  .user-avatar-large {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+    margin: 0 1rem 0 0;
+  }
+  
+  .sidebar-nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  .nav-item {
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .sidebar-stats {
+    display: none;
+  }
+  
+  .courses-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .main-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
   }
 }
 </style>
