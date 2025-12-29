@@ -403,7 +403,7 @@ onMounted(fetchEnrollments)
 .user-avatar-large {
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, var(--accent), #667eea);
+  background: linear-gradient(135deg, var(--accent), #c0392b);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -452,7 +452,7 @@ onMounted(fetchEnrollments)
 
 .nav-item.explore {
   margin-top: 1rem;
-  background: linear-gradient(135deg, var(--accent), #667eea);
+  background: linear-gradient(135deg, var(--accent), #c0392b);
   color: white;
   margin: 1rem 1rem 0;
   border-radius: 8px;
@@ -684,7 +684,7 @@ onMounted(fetchEnrollments)
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), #667eea);
+  background: linear-gradient(90deg, var(--accent), #c0392b);
   border-radius: 2px;
   transition: width 0.5s;
 }
@@ -898,8 +898,8 @@ onMounted(fetchEnrollments)
 }
 
 .lesson-type-badge-player {
-  background: rgba(102,126,234,0.2);
-  color: #667eea;
+  background: rgba(231,76,60,0.2);
+  color: var(--accent);
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
   font-size: 0.8rem;
