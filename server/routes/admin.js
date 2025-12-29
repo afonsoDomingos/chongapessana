@@ -5,8 +5,38 @@ const { auth, admin } = require('../middleware/auth');
 const ExpoTicket = require('../models/ExpoTicket');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
+const { cloudinary, storage } = require('../config/cloudinary');
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Configure Cloudinary Storage for materials
+const materialStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'chonga-materials',
+        resource_type: 'auto',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'mp4', 'webm']
+    }
+});
+
+const uploadMaterial = multer({ storage: materialStorage });
 
 router.use(auth, admin);
+
+// Upload Material File
+router.post('/upload-material', uploadMaterial.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+        }
+        res.json({
+            url: req.file.path,
+            public_id: req.file.filename
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 router.get('/enrollments', getAllEnrollments);
 router.patch('/enrollments/:id', updateEnrollmentStatus);

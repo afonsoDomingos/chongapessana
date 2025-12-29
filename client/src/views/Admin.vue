@@ -165,9 +165,48 @@
                 <option value="pdf">📄 PDF</option>
                 <option value="image">🖼️ Imagem</option>
               </select>
-              <input v-model="newMaterial.url" placeholder="URL do material" />
-              <button @click="addMaterial(course._id)" class="btn-add-material">
-                <i class="fas fa-plus"></i> Adicionar
+              
+              <!-- Upload Mode Toggle -->
+              <div class="upload-mode-toggle">
+                <button type="button" 
+                  :class="{ active: uploadMode === 'url' }" 
+                  @click="uploadMode = 'url'">
+                  <i class="fas fa-link"></i> URL
+                </button>
+                <button type="button" 
+                  :class="{ active: uploadMode === 'file' }" 
+                  @click="uploadMode = 'file'">
+                  <i class="fas fa-upload"></i> Arquivo
+                </button>
+              </div>
+              
+              <!-- URL Input -->
+              <input 
+                v-if="uploadMode === 'url'" 
+                v-model="newMaterial.url" 
+                placeholder="URL do material" 
+              />
+              
+              <!-- File Upload -->
+              <div v-if="uploadMode === 'file'" class="file-upload-wrapper">
+                <input 
+                  type="file" 
+                  ref="materialFileInput"
+                  @change="handleMaterialFile"
+                  accept=".pdf,.jpg,.jpeg,.png,.mp4,.webm"
+                />
+                <span v-if="materialFile" class="file-name">
+                  <i class="fas fa-file"></i> {{ materialFile.name }}
+                </span>
+              </div>
+              
+              <button 
+                @click="addMaterial(course._id)" 
+                class="btn-add-material"
+                :disabled="uploadingMaterial"
+              >
+                <i :class="uploadingMaterial ? 'fas fa-spinner fa-spin' : 'fas fa-plus'"></i>
+                {{ uploadingMaterial ? 'A enviar...' : 'Adicionar' }}
               </button>
             </div>
             
@@ -252,6 +291,15 @@ const newMaterial = ref({
     url: ''
 })
 
+const uploadMode = ref('url')
+const materialFile = ref(null)
+const materialFileInput = ref(null)
+const uploadingMaterial = ref(false)
+
+const handleMaterialFile = (e) => {
+    materialFile.value = e.target.files[0]
+}
+
 const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A'
     return new Date(dateStr).toLocaleDateString('pt-PT', {
@@ -314,19 +362,59 @@ const getMaterialIcon = (type) => {
 }
 
 const addMaterial = async (courseId) => {
-    if (!newMaterial.value.title || !newMaterial.value.url) {
-        notify.error('Erro', 'Preencha todos os campos')
+    // Validate title
+    if (!newMaterial.value.title) {
+        notify.error('Erro', 'Preencha o título do material')
         return
     }
+    
+    // Validate URL or File
+    if (uploadMode.value === 'url' && !newMaterial.value.url) {
+        notify.error('Erro', 'Preencha a URL do material')
+        return
+    }
+    if (uploadMode.value === 'file' && !materialFile.value) {
+        notify.error('Erro', 'Selecione um arquivo')
+        return
+    }
+
+    uploadingMaterial.value = true
+    
     try {
-        await axios.post(`${API_URL}/api/admin/courses/${courseId}/materials`, newMaterial.value, {
+        let url = newMaterial.value.url
+        
+        // If file mode, upload file first
+        if (uploadMode.value === 'file' && materialFile.value) {
+            const formData = new FormData()
+            formData.append('file', materialFile.value)
+            
+            const uploadRes = await axios.post(`${API_URL}/api/admin/upload-material`, formData, {
+                headers: { 
+                    Authorization: `Bearer ${auth.token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+            url = uploadRes.data.url
+        }
+        
+        // Add material with URL
+        await axios.post(`${API_URL}/api/admin/courses/${courseId}/materials`, {
+            title: newMaterial.value.title,
+            type: newMaterial.value.type,
+            url: url
+        }, {
             headers: { Authorization: `Bearer ${auth.token}` }
         })
+        
         notify.success('Sucesso!', 'Material adicionado.')
         newMaterial.value = { title: '', type: 'video', url: '' }
+        materialFile.value = null
+        if (materialFileInput.value) materialFileInput.value.value = ''
         fetchCourses()
     } catch (err) {
-        notify.error('Erro', 'Erro ao adicionar material')
+        notify.error('Erro', err.response?.data?.message || 'Erro ao adicionar material')
+    } finally {
+        uploadingMaterial.value = false
     }
 }
 
@@ -619,6 +707,67 @@ onMounted(fetchAllEnrollments)
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* Upload Mode Toggle */
+.upload-mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.upload-mode-toggle button {
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-secondary);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.3s;
+}
+
+.upload-mode-toggle button.active {
+  background: var(--accent);
+  color: white;
+}
+
+.upload-mode-toggle button i {
+  margin-right: 0.3rem;
+}
+
+.file-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.file-upload-wrapper input[type="file"] {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.file-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.file-name i {
+  margin-right: 0.3rem;
+  color: var(--accent);
+}
+
+.btn-add-material:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .material-item-admin {
